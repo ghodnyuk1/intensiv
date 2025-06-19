@@ -404,7 +404,7 @@ def main():
     dp.add_handler(MessageHandler(Filters.text | Filters.photo, handle_broadcast_content))
     kyiv_tz = pytz.timezone("Europe/Kyiv")
     job_queue = updater.job_queue
-    job_queue.run_daily(send_daily_lessons, time=time(hour=22, minute=23))
+    job_queue.run_daily(send_daily_lessons, time=time(hour=20, minute=0))
     print("Бот запущено")
     updater.start_polling()
     updater.idle()
