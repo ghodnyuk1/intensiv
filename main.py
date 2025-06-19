@@ -186,7 +186,7 @@ def send_lesson(context: CallbackContext, user_id: str, day: int):
     if delayed:
         context.job_queue.run_once(
             callback=send_delayed_message,
-            when=timedelta(minutes=2),
+            when=timedelta(minutes=17),
             context={"user_id": user_id, "data": delayed}
         )
 
@@ -404,7 +404,7 @@ def main():
     dp.add_handler(MessageHandler(Filters.text | Filters.photo, handle_broadcast_content))
     kyiv_tz = pytz.timezone("Europe/Kyiv")
     job_queue = updater.job_queue
-    job_queue.run_daily(send_daily_lessons, time=time(hour=20, minute=0))
+    job_queue.run_daily(send_daily_lessons, time=time(hour=15, minute=0))
     print("Бот запущено")
     updater.start_polling()
     updater.idle()
