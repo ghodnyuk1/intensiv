@@ -357,7 +357,7 @@ def send_lesson(context: CallbackContext, user_id: int, day: int):
     if delayed:
         context.job_queue.run_once(
             callback=send_delayed_message,
-            when=timedelta(minutes=18),
+            when=timedelta(minutes=14),
             context={"user_id": user_id, "data": delayed}
         )
 
