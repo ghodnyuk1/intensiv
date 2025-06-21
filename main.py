@@ -9,7 +9,7 @@ from telegram.ext import (
 )
 
 # === Налаштування ===
-TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+TOKEN = '7976269778:AAEoGKG-_p6CAIZ1z0k3dI4irjLnQfpTNxQ'  # Переконайтеся, що рядок точно такий
 ADMIN_ID = int(os.getenv('ADMIN_ID'))  # Ваш Telegram ID
 DATABASE_URL = os.getenv('DATABASE_URL') or "postgresql://progress_db_noqr_user:Ah4ZITPFcECfQ3HCTvPcvcWCB9PzY6hv@dpg-d1as36je5dus73e06ju0-a/progress_db_noqr"
 
@@ -287,6 +287,20 @@ def get_users_count_by_day():
     cur.close()
     conn.close()
     return result
+
+def main():
+    if not TOKEN:
+        print("ПОМИЛКА: Токен бота не вказано!")
+        return
+    
+    print(f"Спроба підключення з токеном: {TOKEN[:5]}...")  # Логуємо перші 5 символів токена
+    
+    try:
+        updater = Updater(TOKEN, use_context=True)
+        print("Бот успішно ініціалізований!")
+    except Exception as e:
+        print(f"Помилка ініціалізації: {e}")
+        return
 
 # === Основні функції бота ===
 def send_lesson(context: CallbackContext, user_id: int, day: int):
