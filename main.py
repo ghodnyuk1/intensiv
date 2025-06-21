@@ -36,7 +36,7 @@ LESSONS = {
             {
                 "text": "Поки очікуєте на початок інтенсиву, підпишіться на мої соцмережі — так ви не пропустите корисні новини та оновлення.",
                 "buttons": [
-                    {"text": "Instagram", "url": "https://example.com"}
+                    {"text": "Instagram", "url": "instagram.com/ghodnyuk_"}
                 ]
             }
         ]
