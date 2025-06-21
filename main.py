@@ -602,7 +602,7 @@ def main():
     kyiv_tz = pytz.timezone("Europe/Kiev")
     job_queue.run_daily(
         send_daily_lessons,
-        time=time(hour=12, minute=45, tzinfo=kyiv_tz),
+        time=time(hour=18, minute=0, tzinfo=kyiv_tz),
         days=(0, 1, 2, 3, 4, 5, 6)
     )
     
