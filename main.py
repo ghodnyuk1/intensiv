@@ -1,9 +1,7 @@
-import json
 import os
+from datetime import datetime, time, timedelta
+import pytz
 import psycopg2
-conn = psycopg2.connect(os.environ['DATABASE_URL'])
-cursor = conn.cursor()
-from datetime import time
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Updater, CommandHandler, CallbackContext,
@@ -11,10 +9,9 @@ from telegram.ext import (
 )
 
 # === Налаштування ===
-TOKEN = '7976269778:AAEoGKG-_p6CAIZ1z0k3dI4irjLnQfpTNxQ'
-ADMIN_ID = 1192135778
-PROGRESS_FILE = 'progress.json'
-BANNED_USERS_FILE = 'banned.json'
+TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+ADMIN_ID = int(os.getenv('ADMIN_ID'))  # Ваш Telegram ID
+DATABASE_URL = os.getenv('DATABASE_URL') or "postgresql://progress_db_noqr_user:Ah4ZITPFcECfQ3HCTvPcvcWCB9PzY6hv@dpg-d1as36je5dus73e06ju0-a/progress_db_noqr"
 
 # === Уроки (1 блок = 1 день) ===
 LESSONS = {
@@ -39,13 +36,11 @@ LESSONS = {
             {
                 "text": "Поки очікуєте на початок інтенсиву, підпишіться на мої соцмережі — так ви не пропустите корисні новини та оновлення.",
                 "buttons": [
-                    {"text": "Instagram", "url": "instagram.com/ghodnyuk_"}
-                    ]
+                    {"text": "Instagram", "url": "https://example.com"}
+                ]
             }
-            
         ]
     },
-
     1: {
         "photo": "https://i.ibb.co/vx1xYpYs/image.jpg",
         "text": "Привіт! Ви вже маєте доступ до перших двох модулів!\n\nПереглядайте уроки та обов'язково застосовуйте отримані знання на практиці.\n\nДіліться своїми враженнями та першими досягненнями - для нас важливо, щоб ви отримали максимум користі від навчання.\n\n\n\nМодулі для перегляду.\n\nКнопки:",
@@ -53,20 +48,20 @@ LESSONS = {
             {"text": "Модуль 1.Що таке дропшипінг?", "url": "https://youtu.be/pnY4OfZQ83g"},
             {"text": "Модуль 2. Пошук продуктів.", "url": "https://youtu.be/eurFhrBz_zE"}
         ],
-    "extra": [
-        {
-            "text": "Матеріал з уроку — таблиця валідації.",
-            "buttons": [
-                {"text": "Таблиця", "url": "https://docs.google.com/spreadsheets/d/1YQN02Vle7QZChI1_4JOrRgcgBE888l_D_gkZm5osUII/edit?gid=0#gid=0"}
-            ]
-        },
-        {
-            "text": "Підтримка.\nТут ви можете отримати відповідь на ваші запитання.",
-            "buttons": [
-                {"text": "Підтримка", "url": "https://t.me/tde_e_comsupport"}
-            ]
-        }
-    ]
+        "extra": [
+            {
+                "text": "Матеріал з уроку — таблиця валідації.",
+                "buttons": [
+                    {"text": "Таблиця", "url": "https://docs.google.com/spreadsheets/d/1YQN02Vle7QZChI1_4JOrRgcgBE888l_D_gkZm5osUII/edit?gid=0#gid=0"}
+                ]
+            },
+            {
+                "text": "Підтримка.\nТут ви можете отримати відповідь на ваші запитання.",
+                "buttons": [
+                    {"text": "Підтримка", "url": "https://t.me/tde_e_comsupport"}
+                ]
+            }
+        ]
     },
     2: {
         "photo": "https://i.ibb.co/jkHgkj92/1.jpg",
@@ -103,7 +98,6 @@ LESSONS = {
             {"text": "Модуль 9. Запуск реклами та її аналіз.", "url": "https://youtu.be/70QXrPmud28"},
             {"text": "Модуль 10. Як обробляти клієнтів.", "url": "https://youtu.be/bQ3_ohy4-P4"}
         ]},
-
     6: {"photo": "https://i.ibb.co/6c9RGBDp/6.jpg", 
         "text": "🎉 Вітаємо з завершенням основної частини інтенсиву!\nВи вже подолали важливий етап і зробили впевнений крок у світ e-commerce. \nМи раді, що могли бути поруч у цей момент вашого зростання.\n\nСьогодні, на 6-й день курсу, на вас чекає бонусний урок, який допоможе вам зорієнтуватися у подальших діях та обрати оптимальний шлях розвитку.\n\n\nУ цьому уроці ви дізнаєтесь:\nЯк почати отримувати дохід, навіть не маючи власного магазину\nЯк глибше зануритись у створення повноцінного E-com бізнесу\nА також — як отримати можливість особистої консультації з Даніїлом, щоб розібрати ваші запитання та сформувати чіткий план подальших дій.\n\n\🎓 Перегляньте урок, застосовуйте знання та не проґавте шанс отримати підтримку саме під ваші цілі. \nМи віримо, що у вас все вийде!\nКнопкa:", 
         "buttons": [
@@ -116,8 +110,7 @@ LESSONS = {
             {"text": "Заповнити форму", "url": "https://docs.google.com/forms/d/e/1FAIpQLSc6--WeRGuxc7y-UEH0fm3s7pzqu_jXZ4VZfT6OkL4vKjdHkg/viewform?usp=header"}
         ]
         }
-        },
-
+    },
     7: {"photo": "https://i.imgur.com/G9ejg3u.jpeg", 
         "text": "🎉 Вітаємо з завершенням інтенсиву! Ви вже зробили важливий крок — тепер час рухатись далі.\n\n🔎 На вас чекає бонус: безкоштовна індивідуальна консультація з Даніїлом, засновником Tour de E-com.\n\nЗустріч триває 15–20 хвилин — цього вистачить, щоб розібратись із вашими запитаннями й отримати практичні поради.\n\n🗓 Забронювати консультацію можна у зручний день протягом 2 тижнів після інтенсиву.", 
         "buttons": [
@@ -125,36 +118,188 @@ LESSONS = {
         ]},
 }
 
-# === Збереження та завантаження JSON ===
-def load_json(file):
-    if not os.path.exists(file):
-        return {} if 'progress' in file else []
-    with open(file, 'r') as f:
-        try:
-            return json.load(f)
-        except json.JSONDecodeError:
-            return {} if 'progress' in file else []
+# === Функції для роботи з базою даних ===
+def get_db_connection():
+    """Підключення до PostgreSQL"""
+    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+    return conn
 
-def save_json(file, data):
-    with open(file, 'w') as f:
-        json.dump(data, f)
+def init_db():
+    """Ініціалізація таблиць у базі даних"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    # Таблиця прогресу користувачів
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            user_id BIGINT PRIMARY KEY,
+            username VARCHAR(255),
+            source VARCHAR(100),
+            current_day INTEGER DEFAULT 0,
+            last_sent DATE,
+            last_seen DATE,
+            actions JSONB,
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+    """)
+    
+    # Таблиця заблокованих користувачів
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS banned_users (
+            user_id BIGINT PRIMARY KEY,
+            banned_at TIMESTAMP DEFAULT NOW()
+        )
+    """)
+    
+    conn.commit()
+    cur.close()
+    conn.close()
 
-progress = load_json(PROGRESS_FILE)
-banned_users = load_json(BANNED_USERS_FILE)
-waiting_for_broadcast = {}
+def get_user_progress(user_id):
+    """Отримати прогрес користувача"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    cur.execute("""
+        SELECT current_day, last_sent, last_seen, actions 
+        FROM users 
+        WHERE user_id = %s
+    """, (user_id,))
+    
+    result = cur.fetchone()
+    cur.close()
+    conn.close()
+    
+    if result:
+        return {
+            'day': result[0],
+            'last_sent': result[1],
+            'last_seen': result[2],
+            'actions': result[3] or []
+        }
+    return None
 
-# === Відправка уроку ===
-def send_lesson(context: CallbackContext, user_id: str, day: int):
+def update_user_progress(user_id, username=None, source=None, day=None, last_sent=None, last_seen=None, actions=None):
+    """Оновити прогрес користувача"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    if get_user_progress(user_id):
+        # Оновлення існуючого користувача
+        updates = []
+        params = []
+        
+        if day is not None:
+            updates.append("current_day = %s")
+            params.append(day)
+        if last_sent is not None:
+            updates.append("last_sent = %s")
+            params.append(last_sent)
+        if last_seen is not None:
+            updates.append("last_seen = %s")
+            params.append(last_seen)
+        if actions is not None:
+            updates.append("actions = %s")
+            params.append(actions)
+        if username is not None:
+            updates.append("username = %s")
+            params.append(username)
+        
+        if updates:
+            query = f"UPDATE users SET {', '.join(updates)} WHERE user_id = %s"
+            params.append(user_id)
+            cur.execute(query, params)
+    else:
+        # Додавання нового користувача
+        cur.execute("""
+            INSERT INTO users (user_id, username, source, current_day, last_sent, last_seen, actions)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (user_id) DO NOTHING
+        """, (user_id, username or "", source or "unknown", day or 0, last_sent, last_seen, actions or []))
+    
+    conn.commit()
+    cur.close()
+    conn.close()
+
+def is_user_banned(user_id):
+    """Перевірити, чи заблокований користувач"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    cur.execute("SELECT 1 FROM banned_users WHERE user_id = %s", (user_id,))
+    result = bool(cur.fetchone())
+    
+    cur.close()
+    conn.close()
+    return result
+
+def ban_user_db(user_id):
+    """Заблокувати користувача"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    cur.execute("""
+        INSERT INTO banned_users (user_id)
+        VALUES (%s)
+        ON CONFLICT (user_id) DO NOTHING
+    """, (user_id,))
+    
+    conn.commit()
+    cur.close()
+    conn.close()
+
+def unban_user_db(user_id):
+    """Розблокувати користувача"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    cur.execute("DELETE FROM banned_users WHERE user_id = %s", (user_id,))
+    
+    conn.commit()
+    cur.close()
+    conn.close()
+
+def get_all_users():
+    """Отримати всіх користувачів"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    cur.execute("SELECT user_id, username, current_day, source, last_seen FROM users")
+    users = cur.fetchall()
+    
+    cur.close()
+    conn.close()
+    return users
+
+def get_users_count_by_day():
+    """Отримати кількість користувачів по днях"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    cur.execute("""
+        SELECT current_day, COUNT(*) 
+        FROM users 
+        GROUP BY current_day 
+        ORDER BY current_day
+    """)
+    result = cur.fetchall()
+    
+    cur.close()
+    conn.close()
+    return result
+
+# === Основні функції бота ===
+def send_lesson(context: CallbackContext, user_id: int, day: int):
+    """Надіслати урок користувачу"""
     lesson = LESSONS.get(day)
     if not lesson:
         return
 
     buttons = [[InlineKeyboardButton(btn["text"], url=btn["url"])] for btn in lesson.get("buttons", [])]
 
-    # 🖼️ Основне повідомлення — якщо є фото, надсилаємо його з текстом як caption
     if lesson.get("photo"):
         context.bot.send_photo(
-            chat_id=int(user_id),
+            chat_id=user_id,
             photo=lesson["photo"],
             caption=lesson["text"],
             reply_markup=InlineKeyboardMarkup(buttons) if buttons else None,
@@ -162,42 +307,49 @@ def send_lesson(context: CallbackContext, user_id: str, day: int):
         )
     else:
         context.bot.send_message(
-            chat_id=int(user_id),
+            chat_id=user_id,
             text=lesson["text"],
             reply_markup=InlineKeyboardMarkup(buttons) if buttons else None,
             parse_mode='HTML'
         )
-            # Відразу додаткове повідомлення (extra)
+
     extra = lesson.get("extra")
     if extra:
         if isinstance(extra, list):
             for e in extra:
                 if "photo" in e:
-                    context.bot.send_photo(chat_id=int(user_id), photo=e["photo"])
+                    context.bot.send_photo(chat_id=user_id, photo=e["photo"])
                 if "text" in e:
                     buttons_e = [[InlineKeyboardButton(b["text"], url=b["url"])] for b in e.get("buttons", [])] if "buttons" in e else None
-                    context.bot.send_message(chat_id=int(user_id), text=e["text"], reply_markup=InlineKeyboardMarkup(buttons_e) if buttons_e else None, parse_mode='HTML')
+                    context.bot.send_message(
+                        chat_id=user_id,
+                        text=e["text"],
+                        reply_markup=InlineKeyboardMarkup(buttons_e) if buttons_e else None,
+                        parse_mode='HTML'
+                    )
         elif isinstance(extra, dict):
             if "photo" in extra:
-                context.bot.send_photo(chat_id=int(user_id), photo=extra["photo"])
+                context.bot.send_photo(chat_id=user_id, photo=extra["photo"])
             if "text" in extra:
                 buttons_e = [[InlineKeyboardButton(b["text"], url=b["url"])] for b in extra.get("buttons", [])] if "buttons" in extra else None
-                context.bot.send_message(chat_id=int(user_id), text=extra["text"], reply_markup=InlineKeyboardMarkup(buttons_e) if buttons_e else None, parse_mode='HTML')
+                context.bot.send_message(
+                    chat_id=user_id,
+                    text=extra["text"],
+                    reply_markup=InlineKeyboardMarkup(buttons_e) if buttons_e else None,
+                    parse_mode='HTML'
+                )
 
-    # Відкладене повідомлення (extra_delayed) через 5 хв
     delayed = lesson.get("extra_delayed")
     if delayed:
         context.job_queue.run_once(
             callback=send_delayed_message,
-            when=timedelta(minutes=17),
+            when=timedelta(minutes=18),
             context={"user_id": user_id, "data": delayed}
         )
 
-    
-
 def send_delayed_message(context: CallbackContext):
     job_data = context.job.context
-    user_id = int(job_data["user_id"])
+    user_id = job_data["user_id"]
     data = job_data["data"]
 
     if "photo" in data:
@@ -212,48 +364,111 @@ def send_delayed_message(context: CallbackContext):
             parse_mode='HTML'
         )
 
-
-# === Команди ===
 def start(update: Update, context: CallbackContext):
-    user_id = str(update.message.chat_id)
-    if user_id in banned_users:
+    user_id = update.message.chat_id
+    if is_user_banned(user_id):
         return
 
     username = update.message.from_user.username or "без імені"
     source = context.args[0] if context.args else "unknown"
+    today = datetime.now(pytz.timezone("Europe/Kiev")).date()
 
-    if user_id not in progress:
-        progress[user_id] = {"day": 0,"actions": [],"username": username,"source": source,"last_sent": str(datetime.now(pytz.timezone("Europe/Kyiv")).date()),"last_seen": str(datetime.now(pytz.timezone("Europe/Kyiv")).date())}
-        save_json(PROGRESS_FILE, progress)
+    user_progress = get_user_progress(user_id)
+    if not user_progress:
+        update_user_progress(
+            user_id=user_id,
+            username=username,
+            source=source,
+            last_sent=today,
+            last_seen=today
+        )
         send_lesson(context, user_id, 0)
     else:
-        progress[user_id]["last_seen"] = str(datetime.now(pytz.timezone("Europe/Kyiv")).date())
-        save_json(PROGRESS_FILE, progress)
+        update_user_progress(
+            user_id=user_id,
+            username=username,
+            source=source,
+            last_seen=today
+        )
         update.message.reply_text("Ви вже зареєстровані. Очікуйте наступний урок завтра о 18:00.")
 
 def send_daily_lessons(context: CallbackContext):
-    today = datetime.now(pytz.timezone("Europe/Kyiv")).date()
-    for user_id, user_data in progress.items():
-        last_sent_str = user_data.get("last_sent")
-        last_sent_date = datetime.strptime(last_sent_str, "%Y-%m-%d").date() if last_sent_str else None
-
-        # Якщо сьогодні вже надсилали — пропустити
-        if last_sent_date == today:
+    """Розсилка уроків за розкладом"""
+    today = datetime.now(pytz.timezone("Europe/Kiev")).date()
+    users = get_all_users()
+    
+    for user_id, username, current_day, source, last_seen in users:
+        if is_user_banned(user_id):
             continue
-
-        next_day = user_data['day'] + 1
+            
+        user_progress = get_user_progress(user_id)
+        if user_progress and user_progress.get('last_sent') == today:
+            continue
+            
+        next_day = current_day + 1
         if next_day >= len(LESSONS):
             continue
-
+            
         send_lesson(context, user_id, next_day)
-        progress[user_id]['day'] = next_day
-        progress[user_id]['last_sent'] = str(today)
+        update_user_progress(
+            user_id=user_id,
+            username=username,
+            source=source,
+            day=next_day,
+            last_sent=today
+        )
 
-    save_json(PROGRESS_FILE, progress)
+# === Адмін-команди ===
+def admin_panel(update: Update, context: CallbackContext):
+    if update.message.chat_id != ADMIN_ID:
+        return
+
+    users_count = len(get_all_users())
+    day_stats = get_users_count_by_day()
+    
+    stats = [f"👥 Користувачів: {users_count}"]
+    for day, count in day_stats:
+        stats.append(f"✅ День {day}: {count}")
+    
+    update.message.reply_text("\n".join(stats), reply_markup=InlineKeyboardMarkup([
+        [InlineKeyboardButton("👥 Переглянути учасників", callback_data="show_users")],
+        [InlineKeyboardButton("📢 Зробити розсилку", callback_data="broadcast")]
+    ]))
+
+def admin_callback(update: Update, context: CallbackContext):
+    query = update.callback_query
+    if query.message.chat_id != ADMIN_ID:
+        query.answer("⛔ Немає доступу")
+        return
+
+    if query.data == "show_users":
+        users = get_all_users()
+        today = datetime.now(pytz.timezone("Europe/Kiev")).date()
+        
+        buttons = []
+        for user_id, username, day, source, last_seen in users:
+            if last_seen:
+                days_ago = (today - last_seen).days
+                seen_label = f"(З: {days_ago} дн. тому)"
+            else:
+                seen_label = ""
+                
+            label = f"@{username} | ID: {user_id} | день {day} | з: {source} {seen_label}"
+            buttons.append([InlineKeyboardButton(label, url=f"https://t.me/{username}")])
+
+        context.bot.send_message(
+            chat_id=ADMIN_ID,
+            text="📋 Список учасників:",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        query.answer("👥 Показано всіх")
+    elif query.data == "broadcast":
+        context.user_data['waiting_for_broadcast'] = True
+        query.message.reply_text("✉️ Надішли текст або фото з текстом для розсилки (мінімум 10 символів).")
+        query.answer()
 
 def manual_lesson(update: Update, context: CallbackContext):
-    user_id = update.message.chat_id
-    if str(user_id) != str(ADMIN_ID):
+    if update.message.chat_id != ADMIN_ID:
         update.message.reply_text("⛔ Доступ заборонено.")
         return
     if not context.args:
@@ -261,200 +476,125 @@ def manual_lesson(update: Update, context: CallbackContext):
         return
     try:
         day = int(context.args[0])
-        send_lesson(context, str(user_id), day)
+        send_lesson(context, update.message.chat_id, day)
     except ValueError:
         update.message.reply_text("❗ Номер дня має бути числом")
 
-def admin_panel(update: Update, context: CallbackContext):
-    if str(update.message.chat_id) != str(ADMIN_ID):
-        return
-
-    total_users = len(progress)
-    avg_day = round(sum(u['day'] for u in progress.values()) / total_users, 2) if total_users else 0
-    stats = [f"👥 Користувачів: {total_users}", f"📊 Середній день: {avg_day}"]
-    for i in range(1, len(LESSONS)+1):
-        stats.append(f"✅ {i}-й урок: {sum(1 for u in progress.values() if u['day'] >= i)}")
-
-    update.message.reply_text("\n".join(stats), reply_markup=InlineKeyboardMarkup([
-        [InlineKeyboardButton("👥 Переглянути учасників", callback_data="show_users")]
-    ]))
-
-def admin_callback(update: Update, context: CallbackContext):
-    query = update.callback_query
-    user_id = str(query.message.chat_id)
-
-    if user_id != str(ADMIN_ID):
-        query.answer("⛔ Немає доступу")
-        return
-
-    if query.data == "show_users":
-        buttons = []
-        today = datetime.now(pytz.timezone("Europe/Kyiv")).date()
-
-        for uid, user in progress.items():
-            username = user.get('username', 'без імені')
-            day = user.get('day', 0)
-            source = user.get('source', 'unknown')
-
-            last_seen_str = user.get("last_seen")
-            if last_seen_str:
-                try:
-                    last_seen_date = datetime.strptime(last_seen_str, "%Y-%m-%d").date()
-                    days_ago = (today - last_seen_date).days
-                    seen_label = f"(З: {days_ago} дн. тому)"
-                except:
-                    seen_label = ""
-            else:
-                seen_label = ""
-
-            label = f"@{username} | ID: {uid} | день {day} | з: {source} {seen_label}"
-            buttons.append([InlineKeyboardButton(label, url=f"https://t.me/{username}")])
-
-        context.bot.send_message(
-            chat_id=int(user_id),
-            text="📋 Список учасників:",
-            reply_markup=InlineKeyboardMarkup(buttons)
-        )
-        query.answer("👥 Показано всіх")
-
-
-# === Інші службові команди ===
-def help_command(update: Update, context: CallbackContext):
-    if str(update.message.chat_id) != str(ADMIN_ID):
-        return
-    update.message.reply_text(
-        "/admin — статистика\n"
-        "/reset USER_ID — скинути прогрес\n"
-        "/help — ця допомога\n"
-        "/ban — заблокувати\n"
-        "/less — викликати урок\n"
-        "/send — надсилання повідомлення"
-    )
-
 def reset_user(update: Update, context: CallbackContext):
-    if str(update.message.chat_id) != str(ADMIN_ID):
+    if update.message.chat_id != ADMIN_ID:
         return
     if not context.args:
         update.message.reply_text("❗ Вкажи ID користувача: /reset USER_ID")
         return
-    uid = context.args[0]
-    if uid in progress:
-        progress[uid]['day'] = 0
-        progress[uid]['actions'] = []
-        save_json(PROGRESS_FILE, progress)
-        update.message.reply_text(f"🔄 Прогрес користувача {uid} скинуто.")
-    else:
-        update.message.reply_text("❌ Користувача не знайдено.")
+    uid = int(context.args[0])
+    update_user_progress(
+        user_id=uid,
+        day=0,
+        actions=[]
+    )
+    update.message.reply_text(f"🔄 Прогрес користувача {uid} скинуто.")
 
-def ban_user(update: Update, context: CallbackContext):
-    if str(update.message.chat_id) != str(ADMIN_ID):
+def ban_user_cmd(update: Update, context: CallbackContext):
+    if update.message.chat_id != ADMIN_ID:
         return
     if not context.args:
         update.message.reply_text("❗ Вкажи ID користувача: /ban USER_ID")
         return
-    uid = context.args[0]
-    if uid not in banned_users:
-        banned_users.append(uid)
-        save_json(BANNED_USERS_FILE, banned_users)
-        update.message.reply_text(f"🚫 Користувача {uid} заблоковано.")
-    else:
-        update.message.reply_text("👤 Користувач уже заблокований.")
+    uid = int(context.args[0])
+    ban_user_db(uid)
+    update.message.reply_text(f"🚫 Користувача {uid} заблоковано.")
 
-def init_db():
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        user_id TEXT PRIMARY KEY,
-        day INTEGER DEFAULT 0,
-        username TEXT,
-        source TEXT,
-        last_sent DATE,
-        last_seen DATE
-    );
-    """)
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS banned_users (
-        user_id TEXT PRIMARY KEY
-    );
-    """)
-    conn.commit()
-
-conn = psycopg2.connect(os.environ['DATABASE_URL'])
-cursor = conn.cursor()
-
-init_db()
-
-def get_user(user_id):
-    cursor.execute("SELECT * FROM users WHERE user_id = %s", (user_id,))
-    return cursor.fetchone()
-
-def save_user(user_id, day, username, source, last_sent, last_seen):
-    cursor.execute("""
-    INSERT INTO users (user_id, day, username, source, last_sent, last_seen)
-    VALUES (%s, %s, %s, %s, %s, %s)
-    ON CONFLICT (user_id) DO UPDATE SET
-        day = EXCLUDED.day,
-        username = EXCLUDED.username,
-        source = EXCLUDED.source,
-        last_sent = EXCLUDED.last_sent,
-        last_seen = EXCLUDED.last_seen
-    """, (user_id, day, username, source, last_sent, last_seen))
-    conn.commit()
-
-
-def send_command(update: Update, context: CallbackContext):
-    user_id = str(update.message.chat_id)
-    if user_id != str(ADMIN_ID):
-        update.message.reply_text("⛔ Доступ заборонено.")
+def unban_user_cmd(update: Update, context: CallbackContext):
+    if update.message.chat_id != ADMIN_ID:
         return
-    waiting_for_broadcast[user_id] = True
-    update.message.reply_text("✉️ Надішли текст або фото з текстом для розсилки (мінімум 10 символів).")
-
-def handle_broadcast_content(update: Update, context: CallbackContext):
-    user_id = str(update.message.chat_id)
-    if user_id != str(ADMIN_ID) or not waiting_for_broadcast.get(user_id):
+    if not context.args:
+        update.message.reply_text("❗ Вкажи ID користувача: /unban USER_ID")
         return
+    uid = int(context.args[0])
+    unban_user_db(uid)
+    update.message.reply_text(f"✅ Користувача {uid} розблоковано.")
+
+def handle_broadcast(update: Update, context: CallbackContext):
+    if not context.user_data.get('waiting_for_broadcast') or update.message.chat_id != ADMIN_ID:
+        return
+    
     text = update.message.text or update.message.caption or ""
-    if len(text.strip()) < 10 or text.strip() == "1":
-        update.message.reply_text("❌ Повідомлення не відправлено. Повторно введи /send.")
-        waiting_for_broadcast.pop(user_id, None)
+    if len(text.strip()) < 10:
+        update.message.reply_text("❌ Повідомлення занадто коротке. Мінімум 10 символів.")
         return
+    
     photo = update.message.photo[-1].file_id if update.message.photo else None
-    for uid in progress:
+    users = get_all_users()
+    success = 0
+    failed = 0
+    
+    for user_id, _, _, _, _ in users:
         try:
             if photo:
-                context.bot.send_photo(chat_id=int(uid), photo=photo, caption=text)
+                context.bot.send_photo(
+                    chat_id=user_id,
+                    photo=photo,
+                    caption=text,
+                    parse_mode='HTML'
+                )
             else:
-                context.bot.send_message(chat_id=int(uid), text=text)
+                context.bot.send_message(
+                    chat_id=user_id,
+                    text=text,
+                    parse_mode='HTML'
+                )
+            success += 1
         except Exception as e:
-            print(f"❌ Не вдалося надіслати {uid}: {e}")
-    update.message.reply_text("✅ Повідомлення надіслано всім.")
-    waiting_for_broadcast.pop(user_id, None)
+            print(f"Не вдалося надіслати {user_id}: {e}")
+            failed += 1
+    
+    update.message.reply_text(f"✅ Розсилка завершена:\nУспішно: {success}\nНе вдалося: {failed}")
+    context.user_data.pop('waiting_for_broadcast', None)
 
+def help_command(update: Update, context: CallbackContext):
+    if update.message.chat_id != ADMIN_ID:
+        return
+    update.message.reply_text(
+        "Доступні команди:\n"
+        "/start - Початок роботи з ботом\n"
+        "/admin - Панель адміністратора\n"
+        "/less N - Надіслати урок N\n"
+        "/reset USER_ID - Скинути прогрес користувача\n"
+        "/ban USER_ID - Заблокувати користувача\n"
+        "/unban USER_ID - Розблокувати користувача\n"
+        "/help - Довідка"
+    )
 
-from datetime import time, timedelta, datetime
-import pytz  # ⬅️ не забудь імпортувати на початку файлу
-# === Запуск ===
 def main():
+    # Ініціалізація бази даних
+    init_db()
+    
     updater = Updater(TOKEN, use_context=True)
     dp = updater.dispatcher
-
-    # Реєструємо обробники команд і повідомлень
+    
+    # Обробники команд
     dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("less", manual_lesson, pass_args=True))
     dp.add_handler(CommandHandler("admin", admin_panel))
-    dp.add_handler(CallbackQueryHandler(admin_callback, pattern="show_users"))
-    dp.add_handler(CommandHandler("help", help_command))
+    dp.add_handler(CommandHandler("less", manual_lesson, pass_args=True))
     dp.add_handler(CommandHandler("reset", reset_user, pass_args=True))
-    dp.add_handler(CommandHandler("ban", ban_user, pass_args=True))
-    dp.add_handler(CommandHandler("send", send_command))
-    dp.add_handler(MessageHandler(Filters.text | Filters.photo, handle_broadcast_content))
-    kyiv_tz = pytz.timezone("Europe/Kyiv")
+    dp.add_handler(CommandHandler("ban", ban_user_cmd, pass_args=True))
+    dp.add_handler(CommandHandler("unban", unban_user_cmd, pass_args=True))
+    dp.add_handler(CommandHandler("help", help_command))
+    dp.add_handler(CallbackQueryHandler(admin_callback))
+    dp.add_handler(MessageHandler(Filters.text | Filters.photo, handle_broadcast))
+    
+    # Планувальник для щоденної розсилки
     job_queue = updater.job_queue
-    job_queue.run_daily(send_daily_lessons, time=time(hour=18, minute=0))
+    kyiv_tz = pytz.timezone("Europe/Kiev")
+    job_queue.run_daily(
+        send_daily_lessons,
+        time=time(hour=18, minute=0, tzinfo=kyiv_tz),
+        days=(0, 1, 2, 3, 4, 5, 6)
+    )
+    
     print("Бот запущено")
     updater.start_polling()
     updater.idle()
-
 
 if __name__ == "__main__":
     main()
