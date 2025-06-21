@@ -1,5 +1,8 @@
 import json
 import os
+import psycopg2
+conn = psycopg2.connect(os.environ['DATABASE_URL'])
+cursor = conn.cursor()
 from datetime import time
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
@@ -357,6 +360,47 @@ def ban_user(update: Update, context: CallbackContext):
     else:
         update.message.reply_text("👤 Користувач уже заблокований.")
 
+def init_db():
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        user_id TEXT PRIMARY KEY,
+        day INTEGER DEFAULT 0,
+        username TEXT,
+        source TEXT,
+        last_sent DATE,
+        last_seen DATE
+    );
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS banned_users (
+        user_id TEXT PRIMARY KEY
+    );
+    """)
+    conn.commit()
+
+conn = psycopg2.connect(os.environ['DATABASE_URL'])
+cursor = conn.cursor()
+
+init_db()
+
+def get_user(user_id):
+    cursor.execute("SELECT * FROM users WHERE user_id = %s", (user_id,))
+    return cursor.fetchone()
+
+def save_user(user_id, day, username, source, last_sent, last_seen):
+    cursor.execute("""
+    INSERT INTO users (user_id, day, username, source, last_sent, last_seen)
+    VALUES (%s, %s, %s, %s, %s, %s)
+    ON CONFLICT (user_id) DO UPDATE SET
+        day = EXCLUDED.day,
+        username = EXCLUDED.username,
+        source = EXCLUDED.source,
+        last_sent = EXCLUDED.last_sent,
+        last_seen = EXCLUDED.last_seen
+    """, (user_id, day, username, source, last_sent, last_seen))
+    conn.commit()
+
+
 def send_command(update: Update, context: CallbackContext):
     user_id = str(update.message.chat_id)
     if user_id != str(ADMIN_ID):
@@ -393,6 +437,8 @@ import pytz  # ⬅️ не забудь імпортувати на початк
 def main():
     updater = Updater(TOKEN, use_context=True)
     dp = updater.dispatcher
+
+    # Реєструємо обробники команд і повідомлень
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("less", manual_lesson, pass_args=True))
     dp.add_handler(CommandHandler("admin", admin_panel))
@@ -404,10 +450,11 @@ def main():
     dp.add_handler(MessageHandler(Filters.text | Filters.photo, handle_broadcast_content))
     kyiv_tz = pytz.timezone("Europe/Kyiv")
     job_queue = updater.job_queue
-    job_queue.run_daily(send_daily_lessons, time=time(hour=15, minute=0))
+    job_queue.run_daily(send_daily_lessons, time=time(hour=18, minute=0))
     print("Бот запущено")
     updater.start_polling()
     updater.idle()
+
 
 if __name__ == "__main__":
     main()
